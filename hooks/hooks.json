@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const i=JSON.parse(d);const cmd=i.tool_input?.command||'';const destructive=/confluence\\s+(create|create-child|copy-tree|update|move|delete|comment\\s|comment-delete|attachment-upload|attachment-delete|property-set|property-delete)/.test(cmd);if(destructive){console.error('[Confluence Constitution] BLOCKED: This command modifies Confluence data.');console.error('[Confluence Constitution] Command: '+cmd.substring(0,200));console.error('[Confluence Constitution] You MUST use AskUserQuestion to get explicit user approval before executing this command.');console.error('[Confluence Constitution] Show: exact command, what it does, target page/space, risk level, reversibility.');process.exit(2)}}catch{}console.log(d)})\""
+          }
+        ],
+        "description": "Confluence Constitution: Block create/update/delete commands that bypass user confirmation"
+      }
+    ]
+  }
+}
