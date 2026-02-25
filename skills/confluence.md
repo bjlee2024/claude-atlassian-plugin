@@ -239,6 +239,163 @@ confluence export <pageId> --format html --file content.html
 
 ---
 
+## Mermaid 다이어그램 & Visualize 플러그인
+
+Confluence에서 Mermaid 다이어그램을 렌더링하려면 **Visualize 플러그인**의 `vfcVisualizeMermaid` 매크로를 사용해야 합니다.
+
+> **주의**: `--format markdown`으로 업로드하면 ` ```mermaid ` 코드 블록이 일반 `ac:name="code"` 매크로로 변환되어 **Mermaid가 렌더링되지 않습니다.**
+
+### 문제: Markdown 업로드 시 Mermaid 미렌더링
+
+confluence-cli의 `--format markdown` 변환 과정에서:
+- ` ```mermaid ` 코드 블록 → `ac:name="code"` + `language=mermaid` 파라미터로 변환됨
+- Confluence의 Visualize 플러그인은 `ac:name="vfcVisualizeMermaid"` 매크로만 인식함
+- 결과적으로 Mermaid 코드가 일반 코드 블록으로만 표시됨
+
+### 문제: Storage 형식의 HTML 엔티티 인코딩
+
+Storage 형식으로 변환 시 CDATA 내부에 HTML 엔티티(`&quot;`, `&amp;`, `&lt;`, `&gt;`, `&rarr;` 등)가 남아있으면:
+- Mermaid 파서가 엔티티를 인식하지 못해 다이어그램 렌더링 실패
+- 코드 블록 내 JSON, 설정 등의 가독성 저하
+- Visualize의 "auto resolve" 기능으로 일부 자동 수정되나, 완전하지 않음
+
+### 올바른 Mermaid 업로드 워크플로우
+
+Mermaid 다이어그램이 포함된 문서를 Confluence에 업로드할 때는 아래 절차를 따릅니다:
+
+#### 1단계: Markdown으로 먼저 페이지 생성/수정
+
+```bash
+confluence create-child "<title>" <parentId> --file ./doc.md --format markdown
+# 또는
+confluence update <pageId> --file ./doc.md --format markdown
+```
+
+#### 2단계: Storage 형식으로 export
+
+```bash
+confluence edit <pageId> --output /tmp/page-storage.html
+```
+
+#### 3단계: Python으로 매크로 변환 + HTML 엔티티 디코딩
+
+```python
+import re
+
+with open('/tmp/page-storage.html', 'r') as f:
+    content = f.read()
+
+def fix_mermaid_block(match):
+    block = match.group(0)
+    # language=mermaid인 code 블록만 변환
+    if 'mermaid' not in block.lower():
+        return block
+
+    # CDATA 내 HTML 엔티티 디코딩
+    def decode_cdata(m):
+        cdata = m.group(1)
+        cdata = cdata.replace('&quot;', '"')
+        cdata = cdata.replace('&amp;', '&')
+        cdata = cdata.replace('&lt;', '<')
+        cdata = cdata.replace('&gt;', '>')
+        cdata = cdata.replace('&rarr;', '→')
+        return '<![CDATA[' + cdata + ']]>'
+
+    # CDATA 디코딩
+    block = re.sub(r'<!\[CDATA\[(.*?)\]\]>', decode_cdata, block, flags=re.DOTALL)
+
+    # code 매크로 → vfcVisualizeMermaid 매크로 변환
+    block = re.sub(
+        r'ac:name="code"',
+        'ac:name="vfcVisualizeMermaid"',
+        block
+    )
+    # language 파라미터 → display-options 파라미터 변환
+    block = re.sub(
+        r'<ac:parameter ac:name="language">mermaid</ac:parameter>',
+        '<ac:parameter ac:name="display-options">{:rf "mermaid"}</ac:parameter>',
+        block
+    )
+    return block
+
+# code 블록 매크로를 찾아 변환
+pattern = r'<ac:structured-macro[^>]*ac:name="code"[^>]*>.*?</ac:structured-macro>'
+content = re.sub(pattern, fix_mermaid_block, content, flags=re.DOTALL)
+
+# 이미 vfcVisualizeMermaid인 블록도 CDATA 엔티티 디코딩
+def fix_existing_mermaid(match):
+    block = match.group(0)
+    def decode_cdata(m):
+        cdata = m.group(1)
+        cdata = cdata.replace('&quot;', '"')
+        cdata = cdata.replace('&amp;', '&')
+        cdata = cdata.replace('&lt;', '<')
+        cdata = cdata.replace('&gt;', '>')
+        cdata = cdata.replace('&rarr;', '→')
+        return '<![CDATA[' + cdata + ']]>'
+    return re.sub(r'<!\[CDATA\[(.*?)\]\]>', decode_cdata, block, flags=re.DOTALL)
+
+viz_pattern = r'<ac:structured-macro[^>]*ac:name="vfcVisualizeMermaid"[^>]*>.*?</ac:structured-macro>'
+content = re.sub(viz_pattern, fix_existing_mermaid, content, flags=re.DOTALL)
+
+# 일반 code 블록의 CDATA도 엔티티 디코딩 (JSON 코드 스니펫 등)
+def fix_code_block(match):
+    block = match.group(0)
+    def decode_cdata(m):
+        cdata = m.group(1)
+        cdata = cdata.replace('&quot;', '"')
+        cdata = cdata.replace('&amp;', '&')
+        cdata = cdata.replace('&lt;', '<')
+        cdata = cdata.replace('&gt;', '>')
+        return '<![CDATA[' + cdata + ']]>'
+    return re.sub(r'<!\[CDATA\[(.*?)\]\]>', decode_cdata, block, flags=re.DOTALL)
+
+code_pattern = r'<ac:structured-macro[^>]*ac:name="code"[^>]*>.*?</ac:structured-macro>'
+content = re.sub(code_pattern, fix_code_block, content, flags=re.DOTALL)
+
+with open('/tmp/page-storage-fixed.html', 'w') as f:
+    f.write(content)
+```
+
+#### 4단계: 수정된 storage 형식으로 업데이트
+
+```bash
+confluence update <pageId> --file /tmp/page-storage-fixed.html --format storage
+```
+
+### Visualize 매크로 Storage 형식 참조
+
+```xml
+<!-- 올바른 형식 (렌더링 됨) -->
+<ac:structured-macro ac:name="vfcVisualizeMermaid" ac:schema-version="1">
+  <ac:parameter ac:name="display-options">{:rf "mermaid"}</ac:parameter>
+  <ac:plain-text-body>
+    <![CDATA[graph TB
+      A["노드 A"] --> B["노드 B"]
+    ]]>
+  </ac:plain-text-body>
+</ac:structured-macro>
+
+<!-- 잘못된 형식 (렌더링 안됨) -->
+<ac:structured-macro ac:name="code" ac:schema-version="1">
+  <ac:parameter ac:name="language">mermaid</ac:parameter>
+  <ac:plain-text-body>
+    <![CDATA[graph TB
+      A[&quot;노드 A&quot;] --> B[&quot;노드 B&quot;]
+    ]]>
+  </ac:plain-text-body>
+</ac:structured-macro>
+```
+
+### 핵심 체크리스트
+
+- [ ] 매크로명이 `vfcVisualizeMermaid`인지 확인 (`code` ❌)
+- [ ] `display-options` 파라미터에 `{:rf "mermaid"}` 설정되었는지 확인
+- [ ] CDATA 내부에 `&quot;`, `&amp;`, `&lt;`, `&gt;` 등 HTML 엔티티가 없는지 확인
+- [ ] 일반 `code` 블록 (JSON 등)의 CDATA도 HTML 엔티티 디코딩 확인
+
+---
+
 ## 워크플로우 예시
 
 ### 페이지 내용 확인 후 수정
@@ -258,3 +415,12 @@ confluence export <pageId> --format html --file content.html
 1. `confluence spaces` 로 대상 스페이스 확인
 2. 로컬에서 마크다운 문서 작성
 3. 사용자 확인 후 `confluence create "<title>" <SPACEKEY> --file ./doc.md --format markdown`
+
+### Mermaid 다이어그램 포함 문서 업로드
+
+1. 로컬에서 마크다운 문서 작성 (` ```mermaid ` 코드 블록 포함)
+2. 사용자 확인 후 `confluence create-child` 또는 `confluence update`로 마크다운 업로드
+3. `confluence edit <pageId> --output /tmp/page-storage.html` 로 storage 형식 export
+4. Python 스크립트로 `code` → `vfcVisualizeMermaid` 매크로 변환 + CDATA HTML 엔티티 디코딩
+5. 사용자 확인 후 `confluence update <pageId> --file /tmp/page-storage-fixed.html --format storage`
+6. Confluence에서 다이어그램 렌더링 확인
