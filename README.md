@@ -4,7 +4,7 @@ Claude Code 에서 Confluence 를 CLI 로 연동하는 플러그인입니다.
 
 ## 왜 MCP 가 아닌 CLI 을 사용해야 하는가?
 
-[MCP 와 CLI 비교](docs/confluence-cli-vs-atlassin-mcp.md)
+[MCP 와 CLI 비교](docs/confluence-cli-vs-atlassian-mcp.md)
 
 ## 의존성
 
