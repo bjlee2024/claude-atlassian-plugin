@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-confluence-plugin",
+  "description": "Confluence CLI integration for reading, searching, creating, updating, and deleting pages with built-in constitution for safe data modification",
+  "owner": {
+    "name": "bjlee"
+  },
+  "plugins": [
+    {
+      "name": "claude-confluence-plugin",
+      "description": "Confluence CLI integration for reading, searching, creating, updating, and deleting pages. Includes constitution hooks that enforce user confirmation before any create/update/delete operations.",
+      "version": "1.0.0",
+      "author": {
+        "name": "bjlee"
+      },
+      "source": "./",
+      "category": "productivity",
+      "tags": ["confluence", "atlassian", "wiki", "documentation", "knowledge-base"]
+    }
+  ]
+}
