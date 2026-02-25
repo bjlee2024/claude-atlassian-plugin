@@ -10,7 +10,7 @@ Claude Code 에서 Confluence 를 CLI 로 연동하는 플러그인입니다.
 
 ```bash
 # 1. confluence-cli 설치
-npm install -g confluence-cli
+npm install -g @bjlee2024/confluence-cli
 
 # 2. 플러그인 스킬 등록 (아래 중 택 1)
 
