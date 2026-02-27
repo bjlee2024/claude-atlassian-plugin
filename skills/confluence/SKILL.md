@@ -89,7 +89,7 @@ when_to_use: "confluence, 컨플루언스, confluence 페이지, confluence page
 which confluence 2>/dev/null || command -v confluence 2>/dev/null
 ```
 
-미설치인 경우 `/confluence-init` 스킬을 안내합니다.
+미설치인 경우 `/atlassian-init` 스킬을 안내합니다.
 
 ---
 

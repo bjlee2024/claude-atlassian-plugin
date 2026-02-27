@@ -87,7 +87,7 @@ when_to_use: "jira, 지라, jira 이슈, jira issue, jira 검색, jira search, j
 which jira 2>/dev/null || command -v jira 2>/dev/null
 ```
 
-미설치인 경우 `/jira-init` 스킬을 안내합니다.
+미설치인 경우 `/atlassian-init` 스킬을 안내합니다.
 
 ---
 

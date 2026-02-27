@@ -2,6 +2,33 @@
 
 Confluence CLI (`confluence-cli`) + Jira CLI (`jira-cli`) 연동 플러그인입니다.
 
+## 플러그인 구조
+
+```
+claude-atlassian-plugin/
+├── .claude-plugin/
+│   ├── plugin.json          # 플러그인 메타데이터 (v2.0.0)
+│   └── marketplace.json     # 마켓플레이스 등록 정보
+├── skills/
+│   ├── atlassian-init/SKILL.md  # 통합 초기 설정 스킬
+│   ├── confluence/SKILL.md      # Confluence 작업 스킬
+│   └── jira/SKILL.md            # Jira 작업 스킬
+├── hooks/
+│   └── hooks.json           # PreToolUse 훅 (변경 작업 차단)
+├── docs/
+│   └── confluence-cli-vs-atlassian-mcp.md  # CLI vs MCP 비교 분석
+├── install.sh               # 설치 스크립트 (global/project)
+├── README.md
+└── CLAUDE.md
+```
+
+## 의존성
+
+| 도구 | 용도 | 설치 |
+|------|------|------|
+| [confluence-cli](https://github.com/bjlee2024/confluence-cli) | Confluence REST API CLI | `npm install -g @bjlee2024/confluence-cli` |
+| [jira-cli](https://github.com/ankitpokhrel/jira-cli) | Jira REST API CLI | `brew install ankitpokhrel/tap/jira-cli` |
+
 ## 사용 가능한 스킬
 
 - `/atlassian-init` — Confluence CLI + Jira CLI 통합 설치 및 인증 설정
