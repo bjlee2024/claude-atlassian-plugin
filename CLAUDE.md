@@ -35,6 +35,35 @@ claude-atlassian-plugin/
 - `/confluence` — Confluence 페이지 읽기, 검색, 생성, 수정, 삭제
 - `/jira` — Jira 이슈 조회, 생성, 수정, 삭제, 스프린트/에픽/보드 관리
 
+## 크로스 툴 워크플로우
+
+Confluence와 Jira를 연계하는 대표 시나리오입니다.
+
+### Confluence 스페이스 멤버 → Jira 티켓 현황
+
+1. `confluence spaces` → 스페이스 키 확인
+2. `confluence search --cql "space=<KEY> AND type=page" --limit 50` → 페이지 목록에서 기여자 수집
+3. 각 멤버에 대해:
+   ```bash
+   jira issue list -q "assignee='<email>' AND project=<PROJ> AND resolution=Unresolved" --plain --columns key,summary,status,priority
+   ```
+
+### Jira 이슈 → Confluence 문서화
+
+1. `jira issue list -q "<JQL>" --plain --columns key,summary,status,assignee` → 이슈 목록 수집
+2. 마크다운으로 정리 (로컬 파일)
+3. 사용자 확인 후 `confluence create/update` → Confluence에 게시
+
+### Jira 스프린트 리뷰 → Confluence 기록
+
+1. `jira board list` → 보드 ID 확인
+2. `jira sprint list --board <BOARD-ID> --state active` → 스프린트 ID 확인
+3. `jira issue list -q "sprint=<SPRINT-ID>" --plain --columns key,summary,status,assignee` → 이슈 목록
+4. 마크다운으로 스프린트 리뷰 문서 작성
+5. 사용자 확인 후 `confluence create-child` → Confluence에 게시
+
+---
+
 ## 헌법 (Constitution) - 절대 규칙
 
 ### Confluence 변경 작업 시 사용자 확인 필수
