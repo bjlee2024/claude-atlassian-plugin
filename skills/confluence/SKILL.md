@@ -81,6 +81,60 @@ when_to_use: "confluence, 컨플루언스, confluence 페이지, confluence page
 
 ---
 
+## 명령어 선택 가이드 (Decision Tree)
+
+> **원칙**: 목적에 맞는 명령을 선택합니다. 검색은 CQL 우선, 목록 조회는 전용 명령을 사용합니다.
+
+| 목적 | 올바른 접근 | 잘못된 접근 |
+|------|------------|------------|
+| 스페이스 키/목록 확인 | `confluence spaces` | CQL (스페이스는 CQL 검색 대상이 아님) |
+| 스페이스 내 페이지 검색 | `search --cql "space=KEY AND ..."` | `find`, `search` (키워드) |
+| 스페이스 멤버/기여자 파악 | `search --cql "space=KEY AND contributor=..."` | `spaces` 명령으로 추론 |
+| 특정 제목 페이지 찾기 | `search --cql "title=\"정확한 제목\""` | `find` (스페이스명 매칭 에러 가능) |
+| 페이지 구조/계층 파악 | `children <pageId> --recursive` | `search` |
+| 페이지 내용 확인 | `read <pageId> --format markdown` | `export` (로컬 파일 생성 불필요 시) |
+| 최근 변경 페이지 | `search --cql "lastModified>now(\"-7d\") AND space=KEY"` | `find` |
+
+### 판단 흐름도
+
+```
+사용자 요청 분석
+├── 스페이스 자체 정보? → `confluence spaces`
+├── 페이지 검색?
+│   ├── 조건 조합 필요 (스페이스+제목+라벨+날짜+기여자)? → CQL 검색
+│   ├── 단순 키워드? → CQL 검색 (권장) 또는 `find` (보조)
+│   └── 페이지 ID 알고 있음? → `read` / `info`
+├── 페이지 구조? → `children --recursive`
+└── 멤버/기여자 파악? → CQL `contributor=` 검색
+```
+
+---
+
+## 출력 형식 & 파싱
+
+| 명령 | 출력 형식 | 파싱 참고 |
+|------|----------|----------|
+| `confluence spaces` | `KEY - Name` (한 줄에 하나, 자동 페이지네이션) | `grep`으로 필터링 가능 |
+| `confluence search --cql ...` | ID, Title, URL 포함 테이블 | `--limit`으로 결과 수 제한 |
+| `confluence children` | 기본: 리스트, `--format tree`: 들여쓰기 계층 | `--show-id --show-url`로 메타 추가 |
+| `confluence read --format markdown` | 마크다운 텍스트 | 파이프라인 처리 용이 |
+| `confluence info` | 메타데이터 (ID, 제목, 버전, 작성자 등) | 페이지 ID 확인용 |
+
+---
+
+## 에러 대응
+
+| 에러 | 원인 | 대응 |
+|------|------|------|
+| `ID: undefined` | `find`로 스페이스 이름이 매칭됨 | `search --cql "title=\"...\""` 로 전환 |
+| `401 Unauthorized` | 토큰 만료 또는 잘못된 인증 | `/atlassian-init` 안내 |
+| `404 Not Found` | 잘못된 pageId 또는 삭제된 페이지 | CQL 검색으로 재확인 |
+| `rate limit` / `429` | API 호출 초과 | 간격 두고 재시도 (5초 대기) |
+| CQL 검색 결과 0건 | 조건이 너무 좁음 | 조건 완화 (`title~` 사용, 필드 줄이기) 후 재검색 |
+| `--cql` 없이 CQL 문법 사용 | 텍스트 검색으로 처리됨 | 반드시 `--cql` 플래그 포함 |
+
+---
+
 ## 사전 조건 확인
 
 모든 작업 전에 `confluence-cli` 설치 여부를 확인합니다:
